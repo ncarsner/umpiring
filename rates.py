@@ -1,17 +1,12 @@
-hs = 90
-ms = 80
-mtaba = 80
-mtaba_post = 95
-ll_maj = 44
-ll_min = 39
-travel_a = 10 + 90
-travel_b = 11.40 + 85
-hs_post = 85
-travel_c = 14.4 + 85
-travel_d = 19.2 + 85
-trublu = 90
-ovl = 150
-tru_fall = 85
-maj_fall = 55
-min_fall = 45
-tour_fall = 85
+game_rates = {
+    "ovl": 150,
+    "ccua_hs": 90,
+    "ccua_ms": 80,
+    "ccua_post": 85,
+    "mtaba": 80,
+    "mtaba_post": 95,
+    "tru": 90,
+    "tru_fall": 85,
+    "ll_majors": 55,
+    "ll_minors": 45,
+}
