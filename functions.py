@@ -1,18 +1,38 @@
-import sites
+import json
 
-def format_compound_code(map_locations, place_name):
-    """Format a compound Plus Code from the dictionary."""
-    if place_name not in map_locations:
-        raise ValueError(f"Location '{place_name}' not found in the dictionary")
 
-    plus_code_with_location = map_locations[place_name]
-    compound_code = plus_code_with_location.replace('+', '%2B').replace(' ', '%20')
-    return compound_code
+def format_plus_codes(input_dict):
+    """Formats the values in the input dictionary as compound codes."""
+    formatted_dict = {}
+    for key, value in input_dict.items():
+        formatted_value = value.replace("+", "%2B").replace(" ", "%20").replace(",", "")
+        formatted_dict[key] = formatted_value
+    return formatted_dict
 
-# Example usage
-try:
-    place_name = "Siegel HS"  # Replace with the place name you want to format
-    formatted_compound_code = format_compound_code(sites.fields_and_plus_codes, place_name)
-    print(f"{place_name} formatted as {formatted_compound_code}")
-except ValueError as e:
-    print(e)
+
+def format_single_plus_code(plus_code):
+    """Formats a single Plus Code string."""
+    return plus_code.replace("+", "%2B").replace(" ", "%20").replace(",", "")
+
+
+def kilometers_to_miles(km):
+    """Convert kilometers to miles."""
+    miles = int(km * 0.621371 * 1000) / 1000
+    return miles
+
+
+def extract_distance_and_convert(json_data):
+    """Extract the distance from the JSON and convert it to miles."""
+    # Parse the JSON data
+    data = json.loads(json_data)
+
+    # Access the distance value from the API call
+    meters = data["rows"][0]["elements"][0]["distance"]["value"]
+
+    # Convert meters to kilometers
+    kilometers = meters / 1000
+
+    # Convert kilometers to miles
+    miles = kilometers_to_miles(kilometers)
+
+    return miles
