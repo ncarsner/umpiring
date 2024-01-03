@@ -1,5 +1,3 @@
-
-markdown_content = """
 # Officiating Revenue and Travel Tracker
 
 ## Description
@@ -60,12 +58,5 @@ This application is designed for tracking officiating revenue and travel through
 - Fork the repository.
 - Create a new branch for your feature.
 - Submit a pull request for review.
-"""
 
-# Saving the markdown content to a file
-file_path = '/mnt/data/Officiating_Revenue_and_Travel_Tracker.md'
-with open(file_path, 'w') as file:
-    file.write(markdown_content)
-
-file_path
 
