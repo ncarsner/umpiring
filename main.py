@@ -1,7 +1,10 @@
 import configparser
-import sites
 import random
+from dataclasses import dataclass, field
+from datetime import datetime
+
 import functions
+import sites
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -29,3 +32,31 @@ distances = functions.calculate_distances(api_key, default_from, sites.ballfield
 # Print distances
 for name, distance in distances.items():
     print(f"{name}: {distance}")
+
+
+@dataclass
+class Game:
+    # Attributes with default values
+    date: datetime = field(default_factory=lambda: datetime.today())
+    site: str = ""
+    league: str = ""
+    assignor: str = ""
+    game_fee: float = 0.0
+    fee_paid: bool = False
+    is_volunteer: bool = False
+
+    # Mileage attribute will be calculated based on the 'site'
+    def __post_init__(self):
+        self.mileage = self.get_mileage_from_site(self.site)
+
+    @staticmethod
+    def get_mileage_from_site(site):
+        # Define the dictionary of ballparks and their corresponding mileages
+        ballparks = {
+            "Ballpark1": 100,
+            "Ballpark2": 150,
+            # Add more entries as needed
+        }
+
+        # Return the mileage for the given site, or 0 if the site is not found
+        return ballparks.get(site, 0)
