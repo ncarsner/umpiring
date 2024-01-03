@@ -1,4 +1,5 @@
 import json
+import googlemaps
 
 
 def format_plus_codes(input_dict):
@@ -36,3 +37,35 @@ def extract_distance_and_convert(json_data):
     miles = kilometers_to_miles(kilometers)
 
     return miles
+
+
+# Function to calculate distances using Google Maps API for a dictionary of addresses
+def calculate_distances(api_key, default_from, destination_addresses):
+    # Initialize the Google Maps client with your API key
+    gmaps = googlemaps.Client(key=api_key)
+
+    # Dictionary to hold the names and distances
+    distances = {}
+
+    # Iterate over the destination addresses dictionary
+    for name, address in destination_addresses.items():
+        # Get the distance matrix result
+        distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
+
+        # Extract the distance if available
+        if distance_result["rows"][0]["elements"][0]["status"] == "OK":
+            distance_text = distance_result["rows"][0]["elements"][0]["distance"][
+                "text"
+            ]
+            # Check if the distance is in miles, otherwise convert it
+            if "km" in distance_text:
+                # Extract the numeric part and convert it to miles (1 km = 0.621371 miles)
+                distance_km = float(distance_text.split()[0].replace(",", ""))
+                distance_miles = round(distance_km * 0.621371, 1)
+                distances[name] = f"{distance_miles} miles"
+            else:
+                distances[name] = distance_text
+        else:
+            distances[name] = "Distance not found"
+
+    return distances
