@@ -13,8 +13,8 @@ This application is designed for tracking officiating revenue and travel through
 
 ## Task List
 ### Setting Up
-   [ ] Set up Python environment.
-   [ ] Install necessary packages.
+   - [ ] Set up Python environment.
+   - [ ] Install necessary packages.
 
 ### Designing Data Classes
 - [ ] Create Game data class.
