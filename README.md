@@ -12,16 +12,16 @@ This application is designed for tracking officiating revenue and travel through
 - Command-line interface for easy interaction.
 
 ## Task List
-### Setting Up
-   - [ ] Set up Python environment.
-   - [ ] Install necessary packages.
+### Setup
+- [x] Set up Python environment.
+- [x] Install necessary packages.
 
 ### Designing Data Classes
-- [ ] Create Game data class.
+- [x] Create Game data class.
 
 ### Database Operations
-- [ ] Set up SQLite database.
-- [ ] Implement functions for database CRUD operations.
+- [x] Set up SQLite database.
+- [x] Implement functions for database CRUD operations.
 
 ### Application Logic
 - [ ] Develop input validation logic.
