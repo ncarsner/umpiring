@@ -1,5 +1,55 @@
 import json
+import sqlite3
+from sqlite3 import Error
+
 import googlemaps
+
+
+def create_connection(db_file):
+    """ Create a database connection to a SQLite database """
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        print("SQLite DB connected: version", sqlite3.version)
+        return conn
+    except Error as e:
+        print(e)
+    return conn
+
+def create_table(conn):
+    """ Create a table in the SQLite database """
+    try:
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS games (
+                id INTEGER PRIMARY KEY,
+                date TEXT,
+                site TEXT,
+                league TEXT,
+                assignor TEXT,
+                game_fee REAL,
+                fee_paid BOOLEAN,
+                is_volunteer BOOLEAN,
+                mileage INTEGER
+            );
+        ''')
+        print("Table created successfully")
+    except Error as e:
+        print(e)
+
+def initialize_database(db_file):
+    """ Initialize the database with the required tables """
+    conn = create_connection(db_file)
+    if conn is not None:
+        create_table(conn)
+        conn.close()
+    else:
+        print("Error! cannot create the database connection.")
+
+# Initialize the database
+db_file = 'officiating.db'
+initialize_database(db_file)
+
 
 
 def format_plus_codes(input_dict):
