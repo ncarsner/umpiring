@@ -6,7 +6,7 @@ import googlemaps
 
 
 def create_connection(db_file):
-    """ Create a database connection to a SQLite database """
+    """Create a database connection to a SQLite database"""
     conn = None
     try:
         conn = sqlite3.connect(db_file)
@@ -16,11 +16,13 @@ def create_connection(db_file):
         print(e)
     return conn
 
+
 def create_table(conn):
-    """ Create a table in the SQLite database """
+    """Create a table in the SQLite database"""
     try:
         c = conn.cursor()
-        c.execute('''
+        c.execute(
+            """
             CREATE TABLE IF NOT EXISTS games (
                 id INTEGER PRIMARY KEY,
                 date TEXT,
@@ -32,13 +34,15 @@ def create_table(conn):
                 is_volunteer BOOLEAN,
                 mileage INTEGER
             );
-        ''')
+        """
+        )
         print("Table created successfully")
     except Error as e:
         print(e)
 
+
 def initialize_database(db_file):
-    """ Initialize the database with the required tables """
+    """Initialize the database with the required tables"""
     conn = create_connection(db_file)
     if conn is not None:
         create_table(conn)
@@ -46,10 +50,92 @@ def initialize_database(db_file):
     else:
         print("Error! cannot create the database connection.")
 
+
 # Initialize the database
-db_file = 'officiating.db'
+db_file = "officiating.db"
 initialize_database(db_file)
 
+
+def create_relation_tables_v2(conn):
+    """Create or update relation tables in the SQLite database to include mileage in sites"""
+    try:
+        c = conn.cursor()
+        c.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS sites (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE,
+                mileage INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS leagues (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS assignors (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE
+            );
+        """
+        )
+        print("Relation tables created or updated successfully")
+    except sqlite3.Error as e:
+        print(e)
+
+
+def insert_site_if_not_exists(conn, site_name, mileage=0):
+    """Insert a site into the sites table if it does not already exist and return its ID and mileage"""
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT OR IGNORE INTO sites(name, mileage) VALUES(?, ?)",
+            (site_name, mileage),
+        )
+        cur.execute("SELECT id, mileage FROM sites WHERE name = ?", (site_name,))
+        site_data = cur.fetchone()
+        conn.commit()
+        return site_data  # Returns a tuple (id, mileage)
+    except sqlite3.Error as e:
+        print(e)
+        return None
+
+
+def add_game_to_db_v3(db_file, game):
+    """Add a game to the database with normalized tables and mileage logic"""
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            # Insert site if it doesn't exist and get its ID and mileage
+            site_data = insert_site_if_not_exists(conn, game.site, game.mileage)
+            site_id, site_mileage = site_data if site_data else (None, 0)
+
+            # Use the mileage from the site if not provided in the game
+            game_mileage = game.mileage if game.mileage > 0 else site_mileage
+
+            # Prepare SQL to insert the game
+            sql = """ INSERT INTO games(date, site_id, league_id, assignor_id, game_fee, fee_paid, is_volunteer, mileage)
+                      VALUES(?,?,?,?,?,?,?,?) """
+            cur = conn.cursor()
+            cur.execute(
+                sql,
+                (
+                    game.date.strftime("%Y-%m-%d"),
+                    site_id,
+                    game.league_id,
+                    game.assignor_id,
+                    game.game_fee,
+                    game.fee_paid,
+                    game.is_volunteer,
+                    game_mileage,
+                ),
+            )
+            conn.commit()
+            print("Game added successfully")
+        except sqlite3.Error as e:
+            print(e)
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
 
 
 def format_plus_codes(input_dict):
