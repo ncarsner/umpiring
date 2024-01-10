@@ -13,8 +13,8 @@ api_key = config["credentials"]["api_key"]
 default_from = config["credentials"]["default_from"]
 
 # selected_site = random.choice(format_plus_codes(sites.fields_and_plus_codes.values()))
-sites_api_formatted = functions.format_plus_codes(sites.fields_and_plus_codes)
-selected_site = random.choice(list(sites_api_formatted.values()))
+# sites_api_formatted = functions.format_plus_codes(sites.fields_and_plus_codes)
+# selected_site = random.choice(list(sites_api_formatted.values()))
 
 # print(selected_site)
 
@@ -52,11 +52,6 @@ class Game:
     @staticmethod
     def get_mileage_from_site(site):
         # Define the dictionary of ballparks and their corresponding mileages
-        ballparks = {
-            "Ballpark1": 100,
-            "Ballpark2": 150,
-            # Add more entries as needed
-        }
-
+        ballparks = sites.ballfields
         # Return the mileage for the given site, or 0 if the site is not found
         return ballparks.get(site, 0)
