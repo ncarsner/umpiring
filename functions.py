@@ -207,10 +207,8 @@ def calculate_distances(api_key, default_from, destination_addresses):
     return distances
 
 
-
-
 def get_sites_with_zero_mileage(db_file):
-    """ Retrieve sites with 0 mileage from the database """
+    """Retrieve sites with 0 mileage from the database"""
     conn = create_connection(db_file)
     try:
         cur = conn.cursor()
@@ -223,8 +221,9 @@ def get_sites_with_zero_mileage(db_file):
         conn.close()
     return []
 
+
 def update_site_mileage(db_file, site_name, mileage):
-    """ Update the mileage for a given site in the database """
+    """Update the mileage for a given site in the database"""
     conn = create_connection(db_file)
     try:
         cur = conn.cursor()
@@ -235,11 +234,14 @@ def update_site_mileage(db_file, site_name, mileage):
     finally:
         conn.close()
 
+
 def update_zero_mileage_sites(db_file, api_key, default_from):
-    """ Update sites with 0 mileage using Google Maps API """
+    """Update sites with 0 mileage using Google Maps API"""
     sites = get_sites_with_zero_mileage(db_file)
     if sites:
-        destination_addresses = {site: site for site in sites}  # Assuming site name is the address
+        destination_addresses = {
+            site: site for site in sites
+        }  # Assuming site name is the address
         distances = calculate_distances(api_key, default_from, destination_addresses)
 
         for site, distance in distances.items():
@@ -250,9 +252,9 @@ def update_zero_mileage_sites(db_file, api_key, default_from):
             else:
                 print(f"Distance not found for {site}")
 
+
 # # Example usage
 # db_file = 'officiating.db'
 # api_key = 'YOUR_GOOGLE_MAPS_API_KEY'
 # default_from = 'Your Default Address'
 # update_zero_mileage_sites(db_file, api_key, default_from)
-
