@@ -28,7 +28,7 @@ def create_table(conn):
                 site TEXT,
                 league TEXT,
                 assignor TEXT,
-                game_fee REAL,
+                game_fee INT,
                 fee_paid BOOLEAN,
                 is_volunteer BOOLEAN,
                 mileage INTEGER
@@ -111,7 +111,7 @@ def add_game_to_db_v3(db_file, game):
             game_mileage = game.mileage if game.mileage > 0 else site_mileage
 
             # Prepare SQL to insert the game
-            sql = """ INSERT INTO games(date, site_id, league_id, assignor_id, game_fee, fee_paid, is_volunteer, mileage)
+            sql = """ INSERT INTO games(date, site, league, assignor, game_fee, fee_paid, is_volunteer, mileage)
                       VALUES(?,?,?,?,?,?,?,?) """
             cur = conn.cursor()
             cur.execute(
@@ -119,8 +119,8 @@ def add_game_to_db_v3(db_file, game):
                 (
                     game.date.strftime("%Y-%m-%d"),
                     site_id,
-                    game.league_id,
-                    game.assignor_id,
+                    game.league,
+                    game.assignor,
                     game.game_fee,
                     game.fee_paid,
                     game.is_volunteer,
@@ -257,3 +257,29 @@ def update_zero_mileage_sites(db_file, api_key, default_from):
 # api_key = 'YOUR_GOOGLE_MAPS_API_KEY'
 # default_from = 'Your Default Address'
 # update_zero_mileage_sites(db_file, api_key, default_from)
+
+
+def review_unpaid_games(db_file):
+    """Function to review unpaid games"""
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            cur = conn.cursor()
+            # SQL query to select games where fee_paid is False
+            cur.execute("SELECT * FROM games WHERE fee_paid = 0")
+
+            # Fetch and display the results
+            unpaid_games = cur.fetchall()
+            if unpaid_games:
+                print("Unpaid Games:")
+                for game in unpaid_games:
+                    print(game)  # You can format this for better readability
+            else:
+                print("No unpaid games found.")
+
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
