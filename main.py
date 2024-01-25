@@ -67,3 +67,14 @@ class Game:
         # Define the leagues and their corresponding assignors
         league_assignors = leagues.game_assignors
         return league_assignors.get(league, 0)
+
+
+# Adding game sample code
+db_file = 'officiating.db'
+# game = Game(league="tssaa", assignor="ccua", game_fee=90)
+# functions.add_game_to_db_v3(db_file, game)
+
+
+# Review unpaid games sample code
+functions.create_connection(db_file)
+functions.review_unpaid_games(db_file)
