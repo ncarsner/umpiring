@@ -4,6 +4,7 @@ from datetime import datetime
 
 import functions
 import sites
+import leagues
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -25,12 +26,12 @@ default_from = config["credentials"]["default_from"]
 # print(api_request)
 
 
-# Calculate distances
-distances = functions.calculate_distances(api_key, default_from, sites.ballfields)
+# # Calculate distances
+# distances = functions.calculate_distances(api_key, default_from, sites.ballfields)
 
-# Print distances
-for name, distance in distances.items():
-    print(f"{name}: {distance}")
+# # Print distances
+# for name, distance in distances.items():
+#     print(f"{name}: {distance}")
 
 
 @dataclass
@@ -40,7 +41,7 @@ class Game:
     site: str = ""
     league: str = ""
     assignor: str = ""
-    game_fee: float = 0.0
+    game_fee: int = 0
     fee_paid: bool = False
     is_volunteer: bool = False
 
@@ -54,3 +55,15 @@ class Game:
         ballparks = sites.ballfields
         # Return the mileage for the given site, or 0 if the site is not found
         return ballparks.get(site, 0)
+    
+    @staticmethod
+    def get_game_fee_from_league(league):
+        # Define the leagues and their corresponding game fees
+        game_fees = leagues.game_rates
+        return game_fees.get(league, 0)
+    
+    @staticmethod
+    def get_assigor_from_league(league):
+        # Define the leagues and their corresponding assignors
+        league_assignors = leagues.game_assignors
+        return league_assignors.get(league, 0)
