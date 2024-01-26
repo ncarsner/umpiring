@@ -1,7 +1,12 @@
 import sqlite3
 from sqlite3 import Error
+from prettytable import PrettyTable
+import sys
 
 import googlemaps
+
+
+db_file = "officiating.db"
 
 
 def create_connection(db_file):
@@ -9,11 +14,35 @@ def create_connection(db_file):
     conn = None
     try:
         conn = sqlite3.connect(db_file)
-        print("SQLite DB connected: version", sqlite3.version)
+        # print(f"SQLite DB connected: version {sqlite3.version}")
         return conn
     except Error as e:
         print(e)
     return conn
+
+
+def drop_tables(db_file):
+    """Drop tables from the database"""
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            c = conn.cursor()
+            # SQL commands to drop tables
+            c.execute("DROP TABLE IF EXISTS games")
+            c.execute("DROP TABLE IF EXISTS sites")
+            c.execute("DROP TABLE IF EXISTS leagues")
+            c.execute("DROP TABLE IF EXISTS assignors")
+            conn.commit()
+            print("Tables dropped successfully")
+        except sqlite3.Error as e:
+            print(f"An error occurred while dropping tables: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
+
+
+# drop_tables(db_file)
 
 
 def create_table(conn):
@@ -50,12 +79,7 @@ def initialize_database(db_file):
         print("Error! cannot create the database connection.")
 
 
-# Initialize the database
-db_file = "officiating.db"
-initialize_database(db_file)
-
-
-def create_relation_tables_v2(conn):
+def create_relation_tables(conn):
     """Create or update relation tables in the SQLite database to include mileage in sites"""
     try:
         c = conn.cursor()
@@ -81,6 +105,11 @@ def create_relation_tables_v2(conn):
         print(e)
 
 
+def exit_application():
+    print("Exiting the application.")
+    sys.exit()
+
+
 def insert_site_if_not_exists(conn, site_name, mileage=0):
     """Insert a site into the sites table if it does not already exist and return its ID and mileage"""
     try:
@@ -98,7 +127,39 @@ def insert_site_if_not_exists(conn, site_name, mileage=0):
         return None
 
 
-def add_game_to_db_v3(db_file, game):
+def insert_league_if_not_exists(conn, league_name):
+    """Insert a league into the leagues table if it does not already exist and return its ID"""
+    try:
+        cur = conn.cursor()
+        # Convert league name to uppercase before inserting
+        league_name = league_name.upper()
+        cur.execute("INSERT OR IGNORE INTO leagues(name) VALUES(?)", (league_name,))
+        cur.execute("SELECT id FROM leagues WHERE name = ?", (league_name,))
+        league_id = cur.fetchone()[0]
+        conn.commit()
+        return league_id
+    except sqlite3.Error as e:
+        print(e)
+        return None
+
+
+def insert_assignor_if_not_exists(conn, assignor_name):
+    """Insert an assignor into the assignors table if it does not already exist and return its ID"""
+    try:
+        cur = conn.cursor()
+        # Convert assignor name to uppercase before inserting
+        assignor_name = assignor_name.upper()
+        cur.execute("INSERT OR IGNORE INTO assignors(name) VALUES(?)", (assignor_name,))
+        cur.execute("SELECT id FROM assignors WHERE name = ?", (assignor_name,))
+        assignor_id = cur.fetchone()[0]
+        conn.commit()
+        return assignor_id
+    except sqlite3.Error as e:
+        print(e)
+        return None
+
+
+def add_game_to_db(db_file, game):
     """Add a game to the database with normalized tables and mileage logic"""
     conn = create_connection(db_file)
     if conn is not None:
@@ -108,11 +169,11 @@ def add_game_to_db_v3(db_file, game):
             site_id, site_mileage = site_data if site_data else (None, 0)
 
             # Use the mileage from the site if not provided in the game
-            game_mileage = game.mileage if game.mileage > 0 else site_mileage
+            game_mileage = game.mileage if game.mileage else site_mileage
 
             # Prepare SQL to insert the game
             sql = """ INSERT INTO games(date, site, league, assignor, game_fee, fee_paid, is_volunteer, mileage)
-                      VALUES(?,?,?,?,?,?,?,?) """
+                      VALUES(?,?,UPPER(?),?,?,?,?,?) """
             cur = conn.cursor()
             cur.execute(
                 sql,
@@ -176,10 +237,8 @@ def add_game_to_db_v3(db_file, game):
 
 # Function to calculate distances using Google Maps API for a dictionary of addresses
 def calculate_distances(api_key, default_from, destination_addresses):
-    # Initialize the Google Maps client with your API key
     gmaps = googlemaps.Client(key=api_key)
 
-    # Dictionary to hold the names and distances
     distances = {}
 
     # Iterate over the destination addresses dictionary
@@ -187,14 +246,12 @@ def calculate_distances(api_key, default_from, destination_addresses):
         # Get the distance matrix result
         distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
 
-        # Extract the distance if available
         if distance_result["rows"][0]["elements"][0]["status"] == "OK":
             distance_text = distance_result["rows"][0]["elements"][0]["distance"][
                 "text"
             ]
-            # Check if the distance is in miles, otherwise convert it
+            # Convert from km to miles
             if "km" in distance_text:
-                # Extract the numeric part and convert it to miles (1 km = 0.621371 miles)
                 distance_km = float(distance_text.split()[0].replace(",", ""))
                 distance_miles = round(distance_km * 0.621371, 1)
                 distances[name] = f"{distance_miles} miles"
@@ -260,20 +317,34 @@ def update_zero_mileage_sites(db_file, api_key, default_from):
 
 
 def review_unpaid_games(db_file):
-    """Function to review unpaid games"""
+    """Function to review unpaid games, with specific fields"""
     conn = create_connection(db_file)
     if conn is not None:
         try:
             cur = conn.cursor()
-            # SQL query to select games where fee_paid is False
-            cur.execute("SELECT * FROM games WHERE fee_paid = 0")
-
+            # Adjusted SQL query to select specific fields
+            cur.execute(
+                "SELECT id, date, site, league, assignor, game_fee FROM games WHERE fee_paid = 0"
+            )
             # Fetch and display the results
             unpaid_games = cur.fetchall()
+
             if unpaid_games:
-                print("Unpaid Games:")
+                table = PrettyTable()
+                # Set column names for the selected fields
+                table.field_names = [
+                    "ID",
+                    "Date",
+                    "Site",
+                    "League",
+                    "Assignor",
+                    "Game Fee",
+                ]
+
                 for game in unpaid_games:
-                    print(game)  # You can format this for better readability
+                    table.add_row(game)
+
+                print(table)
             else:
                 print("No unpaid games found.")
 

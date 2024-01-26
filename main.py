@@ -2,7 +2,6 @@ import configparser
 from dataclasses import dataclass, field
 from datetime import datetime
 
-import functions
 import sites
 import leagues
 
@@ -49,6 +48,9 @@ class Game:
     def __post_init__(self):
         self.mileage = self.get_mileage_from_site(self.site)
 
+        self.assignor = leagues.game_assignors.get(self.league, "TBD")
+        self.game_fee = leagues.game_rates.get(self.league, 0)
+
     @staticmethod
     def get_mileage_from_site(site):
         # Define the dictionary of ballparks and their corresponding mileages
@@ -67,14 +69,3 @@ class Game:
         # Define the leagues and their corresponding assignors
         league_assignors = leagues.game_assignors
         return league_assignors.get(league, 0)
-
-
-# Adding game sample code
-db_file = 'officiating.db'
-# game = Game(league="tssaa", assignor="ccua", game_fee=90)
-# functions.add_game_to_db_v3(db_file, game)
-
-
-# Review unpaid games sample code
-functions.create_connection(db_file)
-functions.review_unpaid_games(db_file)

@@ -1,17 +1,30 @@
 # Import necessary classes and functions
-import sys
-# from game import Game  # Assuming Game class is in game.py
+from main import Game
+import functions
 # from database_handler import GameDatabaseHandler
 # from mileage import update_site_mileage, auto_update_zero_mileage_sites
+
+db_file = "officiating.db"
+
+# Adding game sample code
+game = Game(
+    # date = None,
+    site="Centennial HS",  # Requires site string or select from top 5
+    league="tssaa_hs",  # Requires league string or select from top 5
+    # assignor=None,  # Get assignor from leagues
+    # game_fee=None,
+    # fee_paid=False,
+    # is_volunteer=False,
+)
 
 
 def main_menu():
     menu_options = {
-        "a": add_game,
+        "a": lambda: functions.add_game_to_db_v3(db_file, game),
         "u": update_game,
-        "v": view_games,
+        "v": lambda: functions.review_unpaid_games(db_file),
         "d": database_ops,
-        "x": exit_application,
+        "x": lambda: functions.exit_application(),
     }
 
     while True:
@@ -33,23 +46,8 @@ def main_menu():
             print("Invalid choice. Please try again.")
 
 
-def exit_application():
-    print("Exiting the application.")
-    sys.exit()
-
-
-def add_game():
-    # Implement the logic to input details for a new game and add it to the database
-    pass
-
-
 def update_game():
     # Logic to select and update an existing game record
-    pass
-
-
-def view_games():
-    # Logic to view games, possibly with filters
     pass
 
 
