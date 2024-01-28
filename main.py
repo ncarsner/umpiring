@@ -43,11 +43,11 @@ class Game:
     game_fee: int = 0
     fee_paid: bool = False
     is_volunteer: bool = False
+    mileage: float = 0.0
 
     # Mileage attribute will be calculated based on the 'site'
     def __post_init__(self):
         self.mileage = self.get_mileage_from_site(self.site)
-
         self.assignor = leagues.game_assignors.get(self.league, "TBD")
         self.game_fee = leagues.game_rates.get(self.league, 0)
 
@@ -69,3 +69,34 @@ class Game:
         # Define the leagues and their corresponding assignors
         league_assignors = leagues.game_assignors
         return league_assignors.get(league, 0)
+
+
+class DatabaseHandler:
+    def __init__(self, db_file):
+        self.db_file = db_file
+
+    def create_connection(self):
+        # Create and return a database connection
+        pass
+
+    def create_relation_tables(self):
+        # Create tables in the database
+        pass
+
+    def drop_tables(self):
+        # Drop tables from the database
+        pass
+
+    def add_game(self, game):
+        # Add a game to the database
+        pass
+
+    def update_sites_with_missing_mileage(self):
+        # Update sites table with missing mileage values
+        pass
+
+    def review_unpaid_games(self):
+        # Review unpaid games in the database
+        pass
+
+    # Additional methods for other database operations

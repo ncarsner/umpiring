@@ -69,6 +69,33 @@ def create_table(conn):
         print(e)
 
 
+def create_games_table(conn):
+    """Create the 'games' table with the correct schema including 'site_id'"""
+    try:
+        c = conn.cursor()
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS games (
+                id INTEGER PRIMARY KEY,
+                date TEXT,
+                site_id INTEGER,
+                league_id INTEGER,
+                assignor_id INTEGER,
+                game_fee REAL,
+                fee_paid BOOLEAN,
+                is_volunteer BOOLEAN,
+                mileage INTEGER,
+                FOREIGN KEY (site_id) REFERENCES sites (id),
+                FOREIGN KEY (league_id) REFERENCES leagues (id),
+                FOREIGN KEY (assignor_id) REFERENCES assignors (id)
+            );
+        """
+        )
+        print("Games table created successfully")
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+
+
 def initialize_database(db_file):
     """Initialize the database with the required tables"""
     conn = create_connection(db_file)
@@ -160,33 +187,61 @@ def insert_assignor_if_not_exists(conn, assignor_name):
         return None
 
 
+# def add_game_to_db(db_file, game):
+#     """Add a game to the database with normalized tables and mileage logic"""
+#     conn = create_connection(db_file)
+#     if conn is not None:
+#         try:
+#             site_id = insert_site_if_not_exists(conn, game.site, game.mileage)
+
+#             sql = """ INSERT INTO games(date, site_id, league_id, assignor_id, game_fee, fee_paid, is_volunteer, mileage)
+#                       VALUES(?,?,?,?,?,?,?,?) """
+#             cur = conn.cursor()
+#             cur.execute(
+#                 sql,
+#                 (
+#                     game.date,
+#                     site_id,
+#                     game.league_id,
+#                     game.assignor_id,
+#                     game.game_fee,
+#                     game.fee_paid,
+#                     game.is_volunteer,
+#                     game.mileage,
+#                 ),
+#             )
+#             conn.commit()
+#             print("Game added successfully")
+#         except sqlite3.Error as e:
+#             print(e)
+#         finally:
+#             conn.close()
+#     else:
+#         print("Error! cannot create the database connection.")
+
+
 def add_game_to_db(db_file, game):
-    """Add a game to the database with normalized tables and mileage logic"""
     conn = create_connection(db_file)
     if conn is not None:
         try:
-            # Insert site if it doesn't exist and get its ID and mileage
-            site_data = insert_site_if_not_exists(conn, game.site, game.mileage)
-            site_id, site_mileage = site_data if site_data else (None, 0)
+            site_id = insert_site_if_not_exists(conn, game.site, game.mileage)
+            league_id = get_league_id(conn, game.league)
+            assignor_id = get_assignor_id(conn, game.assignor)
 
-            # Use the mileage from the site if not provided in the game
-            game_mileage = game.mileage if game.mileage else site_mileage
-
-            # Prepare SQL to insert the game
-            sql = """ INSERT INTO games(date, site, league, assignor, game_fee, fee_paid, is_volunteer, mileage)
-                      VALUES(?,?,UPPER(?),?,?,?,?,?) """
+            sql = """ INSERT INTO games(date, site_id, league_id, assignor_id, game_fee, fee_paid, is_volunteer, mileage)
+                      VALUES(?,?,?,?,?,?,?,?) """
             cur = conn.cursor()
             cur.execute(
                 sql,
                 (
-                    game.date.strftime("%Y-%m-%d"),
+                    game.date,
                     site_id,
-                    game.league,
-                    game.assignor,
+                    league_id,
+                    assignor_id,
                     game.game_fee,
                     game.fee_paid,
                     game.is_volunteer,
-                    game_mileage,
+                    game.mileage,
                 ),
             )
             conn.commit()
@@ -197,6 +252,22 @@ def add_game_to_db(db_file, game):
             conn.close()
     else:
         print("Error! cannot create the database connection.")
+
+
+def get_league_id(conn, league_name):
+    """Get the ID of a league from its name"""
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM leagues WHERE name = ?", (league_name,))
+    result = cur.fetchone()
+    return result[0] if result else None
+
+
+def get_assignor_id(conn, assignor_name):
+    """Get the ID of an assignor from its name"""
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM assignors WHERE name = UPPER(?)", (assignor_name,))
+    result = cur.fetchone()
+    return result[0] if result else None
 
 
 # def format_plus_codes(input_dict):
@@ -324,9 +395,14 @@ def review_unpaid_games(db_file):
         try:
             cur = conn.cursor()
             # Adjusted SQL query to select specific fields
-            cur.execute(
-                "SELECT id, date, site, league, assignor, game_fee FROM games WHERE fee_paid = 0"
-            )
+            sql = """ SELECT g.date, s.name, g.league_id, g.assignor_id, g.game_fee 
+                      FROM games g
+                      JOIN sites s ON g.site_id = s.id
+                      WHERE g.fee_paid = 0 """
+            cur.execute(sql)
+            # cur.execute(
+            #     "SELECT id, date, site, league, assignor, game_fee FROM games WHERE fee_paid = 0"
+            # )
             # Fetch and display the results
             unpaid_games = cur.fetchall()
 
@@ -355,3 +431,76 @@ def review_unpaid_games(db_file):
             conn.close()
     else:
         print("Error! cannot create the database connection.")
+
+
+def rebuild_database(db_file):
+    """Drops all tables and recreates them with the updated structure"""
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            c = conn.cursor()
+
+            # Drop existing tables
+            c.execute("DROP TABLE IF EXISTS games")
+            c.execute("DROP TABLE IF EXISTS sites")
+            c.execute("DROP TABLE IF EXISTS leagues")
+            c.execute("DROP TABLE IF EXISTS assignors")
+
+            # Recreate tables with the updated schema
+            c.execute(
+                """ 
+                CREATE TABLE IF NOT EXISTS sites (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT UNIQUE,
+                    mileage FLOAT DEFAULT 0
+                )
+            """
+            )
+            c.execute(
+                """ 
+                CREATE TABLE IF NOT EXISTS leagues (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT UNIQUE
+                )
+            """
+            )
+            c.execute(
+                """ 
+                CREATE TABLE IF NOT EXISTS assignors (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT UNIQUE
+                )
+            """
+            )
+            c.execute(
+                """ 
+                CREATE TABLE IF NOT EXISTS games (
+                    id INTEGER PRIMARY KEY,
+                    date TEXT,
+                    site_id INTEGER,
+                    league_id INTEGER,
+                    assignor_id INTEGER,
+                    game_fee INT,
+                    fee_paid BOOLEAN,
+                    is_volunteer BOOLEAN,
+                    mileage FLOAT,
+                    FOREIGN KEY (site_id) REFERENCES sites(id),
+                    FOREIGN KEY (league_id) REFERENCES leagues(id),
+                    FOREIGN KEY (assignor_id) REFERENCES assignors(id)
+                )
+            """
+            )
+
+            conn.commit()
+            print("Database rebuilt successfully")
+        except sqlite3.Error as e:
+            print(f"An error occurred while rebuilding the database: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
+
+
+# Usage
+db_file = "officiating.db"
+rebuild_database(db_file)

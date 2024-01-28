@@ -1,5 +1,5 @@
 # Import necessary classes and functions
-from main import Game, DatabaseHandler
+from main import Game
 import functions
 # from database_handler import GameDatabaseHandler
 # from mileage import update_site_mileage, auto_update_zero_mileage_sites
@@ -20,7 +20,7 @@ game = Game(
 
 def main_menu():
     menu_options = {
-        "a": lambda: functions.add_game_to_db_v3(db_file, game),
+        "a": lambda: functions.add_game_to_db(db_file, game),
         "u": update_game,
         "v": lambda: functions.review_unpaid_games(db_file),
         "d": database_ops,
