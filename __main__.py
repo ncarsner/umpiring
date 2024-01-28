@@ -1,5 +1,5 @@
 # Import necessary classes and functions
-from main import Game
+from main import Game, DatabaseHandler
 import functions
 # from database_handler import GameDatabaseHandler
 # from mileage import update_site_mileage, auto_update_zero_mileage_sites

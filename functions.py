@@ -60,7 +60,7 @@ def create_table(conn):
                 game_fee INT,
                 fee_paid BOOLEAN,
                 is_volunteer BOOLEAN,
-                mileage INTEGER
+                mileage REAL
             );
         """
         )
@@ -74,6 +74,7 @@ def initialize_database(db_file):
     conn = create_connection(db_file)
     if conn is not None:
         create_table(conn)
+        create_relation_tables(conn)
         conn.close()
     else:
         print("Error! cannot create the database connection.")
