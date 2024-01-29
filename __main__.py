@@ -1,14 +1,12 @@
 # Import necessary classes and functions
 from main import Game
 import functions
-# from database_handler import GameDatabaseHandler
-# from mileage import update_site_mileage, auto_update_zero_mileage_sites
 
 db_file = "officiating.db"
 
-# Adding game sample code
+# TSSAA High School game
 game = Game(
-    # date = None,
+    # date = "2024-05-12",
     site="Centennial HS",  # Requires site string or select from top 5
     league="tssaa_hs",  # Requires league string or select from top 5
     # assignor=None,  # Get assignor from leagues
@@ -20,10 +18,11 @@ game = Game(
 
 def main_menu():
     menu_options = {
-        "a": lambda: functions.add_game_to_db(db_file, game),
-        "u": update_game,
+        "a": lambda: functions.add_game_to_db_v4(db_file, game),
+        "u": lambda: functions.update_game_by_id(db_file),
         "v": lambda: functions.review_unpaid_games(db_file),
-        "d": database_ops,
+        "s": lambda: functions.display_season_summary(db_file),
+        "d": lambda: functions.database_operations_submenu(),
         "x": lambda: functions.exit_application(),
     }
 
@@ -33,6 +32,7 @@ def main_menu():
         print("[A]dd Game")
         print("[U]pdate Game")
         print("[V]iew Games")
+        print("[S]how Summary")
         print("[D]atabase Ops")
         print("E[x]it\n")
         choice = input("Enter your choice: ").lower()

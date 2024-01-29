@@ -28,10 +28,10 @@ def drop_tables(db_file):
         try:
             c = conn.cursor()
             # SQL commands to drop tables
-            c.execute("DROP TABLE IF EXISTS games")
-            c.execute("DROP TABLE IF EXISTS sites")
-            c.execute("DROP TABLE IF EXISTS leagues")
-            c.execute("DROP TABLE IF EXISTS assignors")
+            # c.execute("DROP TABLE IF EXISTS games")
+            c.execute("TRUNCATE TABLE IF EXISTS sites")
+            c.execute("TRUNCATE TABLE IF EXISTS leagues")
+            c.execute("TRUNCATE TABLE IF EXISTS assignors")
             conn.commit()
             print("Tables dropped successfully")
         except sqlite3.Error as e:
@@ -81,10 +81,10 @@ def create_games_table(conn):
                 site_id INTEGER,
                 league_id INTEGER,
                 assignor_id INTEGER,
-                game_fee REAL,
+                game_fee INTEGER,
                 fee_paid BOOLEAN,
                 is_volunteer BOOLEAN,
-                mileage INTEGER,
+                mileage FLOAT,
                 FOREIGN KEY (site_id) REFERENCES sites (id),
                 FOREIGN KEY (league_id) REFERENCES leagues (id),
                 FOREIGN KEY (assignor_id) REFERENCES assignors (id)
@@ -116,7 +116,7 @@ def create_relation_tables(conn):
             CREATE TABLE IF NOT EXISTS sites (
                 id INTEGER PRIMARY KEY,
                 name TEXT UNIQUE,
-                mileage INTEGER DEFAULT 0
+                mileage INTEGER DEFAULT 0.0
             );
             CREATE TABLE IF NOT EXISTS leagues (
                 id INTEGER PRIMARY KEY,
@@ -138,21 +138,53 @@ def exit_application():
     sys.exit()
 
 
+# def insert_site_if_not_exists(conn, site_name, mileage=0):
+#     """Insert a site into the sites table if it does not already exist and return its ID and mileage"""
+#     try:
+#         cur = conn.cursor()
+#         cur.execute(
+#             "INSERT OR IGNORE INTO sites(name, mileage) VALUES(?, ?)",
+#             (site_name, mileage),
+#         )
+#         cur.execute("SELECT id, mileage FROM sites WHERE name = ?", (site_name,))
+#         site_data = cur.fetchone()
+#         conn.commit()
+#         return site_data  # Returns a tuple (id, mileage)
+#     except sqlite3.Error as e:
+#         print(e)
+#         return None
+
+
 def insert_site_if_not_exists(conn, site_name, mileage=0):
-    """Insert a site into the sites table if it does not already exist and return its ID and mileage"""
+    """Insert a site into the sites table if it does not already exist and return its ID"""
     try:
         cur = conn.cursor()
         cur.execute(
             "INSERT OR IGNORE INTO sites(name, mileage) VALUES(?, ?)",
             (site_name, mileage),
         )
-        cur.execute("SELECT id, mileage FROM sites WHERE name = ?", (site_name,))
-        site_data = cur.fetchone()
+        cur.execute("SELECT id FROM sites WHERE name = ?", (site_name,))
+        site_id = cur.fetchone()[0]
         conn.commit()
-        return site_data  # Returns a tuple (id, mileage)
+        return site_id  # Return only site_id
     except sqlite3.Error as e:
         print(e)
         return None
+
+
+# def get_league_id(conn, league_name):
+#     """ Get the ID of a league from its name """
+#     cur = conn.cursor()
+#     cur.execute("SELECT id FROM leagues WHERE name = UPPER(?)", (league_name,))
+#     result = cur.fetchone()
+#     return result[0] if result else None
+
+# def get_assignor_id(conn, assignor_name):
+#     """ Get the ID of an assignor from its name """
+#     cur = conn.cursor()
+#     cur.execute("SELECT id FROM assignors WHERE name = UPPER(?)", (assignor_name,))
+#     result = cur.fetchone()
+#     return result[0] if result else None
 
 
 def insert_league_if_not_exists(conn, league_name):
@@ -188,11 +220,21 @@ def insert_assignor_if_not_exists(conn, assignor_name):
 
 
 # def add_game_to_db(db_file, game):
-#     """Add a game to the database with normalized tables and mileage logic"""
 #     conn = create_connection(db_file)
 #     if conn is not None:
 #         try:
 #             site_id = insert_site_if_not_exists(conn, game.site, game.mileage)
+#             league_id = get_league_id(conn, game.league)
+#             assignor_id = get_assignor_id(conn, game.assignor)
+
+#             # Debugging: Print values and types
+#             print("site_id:", site_id, type(site_id))
+#             print("league_id:", league_id, type(league_id))
+#             print("assignor_id:", assignor_id, type(assignor_id))
+
+#             # Ensure IDs are not None
+#             if site_id is None or league_id is None or assignor_id is None:
+#                 raise ValueError("Site, league, or assignor ID not found.")
 
 #             sql = """ INSERT INTO games(date, site_id, league_id, assignor_id, game_fee, fee_paid, is_volunteer, mileage)
 #                       VALUES(?,?,?,?,?,?,?,?) """
@@ -202,8 +244,8 @@ def insert_assignor_if_not_exists(conn, assignor_name):
 #                 (
 #                     game.date,
 #                     site_id,
-#                     game.league_id,
-#                     game.assignor_id,
+#                     league_id,
+#                     assignor_id,
 #                     game.game_fee,
 #                     game.fee_paid,
 #                     game.is_volunteer,
@@ -220,24 +262,62 @@ def insert_assignor_if_not_exists(conn, assignor_name):
 #         print("Error! cannot create the database connection.")
 
 
-def add_game_to_db(db_file, game):
+# def add_game_to_db_v3(db_file, game):
+#     conn = create_connection(db_file)
+#     if conn is not None:
+#         try:
+#             site_id = insert_site_if_not_exists(conn, game.site, game.mileage)
+#             league_id = get_league_id(conn, game.league)
+#             assignor_id = get_assignor_id(conn, game.assignor)
+
+#             # Debugging: Print values and types
+#             print("site_id:", site_id, type(site_id))
+#             print("league_id:", league_id, type(league_id))
+#             print("assignor_id:", assignor_id, type(assignor_id))
+
+#             sql = """ INSERT INTO games(date, site_id, league_id, assignor_id, game_fee, fee_paid, is_volunteer, mileage)
+#                       VALUES(?,?,?,?,?,?,?,?) """
+#             cur = conn.cursor()
+#             cur.execute(
+#                 sql,
+#                 (
+#                     game.date,
+#                     site_id,
+#                     league_id,
+#                     assignor_id,
+#                     game.game_fee,
+#                     game.fee_paid,
+#                     game.is_volunteer,
+#                     game.mileage,
+#                 ),
+#             )
+#             conn.commit()
+#             print("Game added successfully")
+#         except sqlite3.Error as e:
+#             print(e)
+#         finally:
+#             conn.close()
+#     else:
+#         print("Error! cannot create the database connection.")
+
+
+def add_game_to_db_v4(db_file, game):
     conn = create_connection(db_file)
     if conn is not None:
         try:
-            site_id = insert_site_if_not_exists(conn, game.site, game.mileage)
-            league_id = get_league_id(conn, game.league)
-            assignor_id = get_assignor_id(conn, game.assignor)
+            if not game.site or not game.league:
+                raise ValueError("Site and League required.")
 
-            sql = """ INSERT INTO games(date, site_id, league_id, assignor_id, game_fee, fee_paid, is_volunteer, mileage)
-                      VALUES(?,?,?,?,?,?,?,?) """
+            sql = """ INSERT INTO games(date, site, league, assignor, game_fee, fee_paid, is_volunteer, mileage)
+                      VALUES(?,?,UPPER(?),?,?,?,?,?) """
             cur = conn.cursor()
             cur.execute(
                 sql,
                 (
                     game.date,
-                    site_id,
-                    league_id,
-                    assignor_id,
+                    game.site,
+                    game.league,
+                    game.assignor,
                     game.game_fee,
                     game.fee_paid,
                     game.is_volunteer,
@@ -248,63 +328,53 @@ def add_game_to_db(db_file, game):
             print("Game added successfully")
         except sqlite3.Error as e:
             print(e)
+        except ValueError as ve:
+            print(ve)
         finally:
             conn.close()
     else:
         print("Error! cannot create the database connection.")
 
 
-def get_league_id(conn, league_name):
-    """Get the ID of a league from its name"""
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM leagues WHERE name = ?", (league_name,))
-    result = cur.fetchone()
-    return result[0] if result else None
+def display_season_summary(db_file):
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            cur = conn.cursor()
+            # SQL query to sum games, fees, and mileage, grouped by assignor and league
+            sql = """
+                SELECT assignor, league, COUNT(*) as total_games, 
+                       SUM(game_fee) as total_fees, SUM(mileage) as total_mileage
+                FROM games
+                GROUP BY assignor, league
+            """
+            cur.execute(sql)
+            summary = cur.fetchall()
 
+            if summary:
+                table = PrettyTable()
+                table.field_names = [
+                    "Assignor",
+                    "League",
+                    "Total Games",
+                    "Total Fees",
+                    "Total Mileage",
+                ]
 
-def get_assignor_id(conn, assignor_name):
-    """Get the ID of an assignor from its name"""
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM assignors WHERE name = UPPER(?)", (assignor_name,))
-    result = cur.fetchone()
-    return result[0] if result else None
+                for row in summary:
+                    table.add_row(row)
 
+                print("Season Summary:\n")
+                print(table)
+            else:
+                print("No data found.")
 
-# def format_plus_codes(input_dict):
-#     """Formats the values in the input dictionary as compound codes."""
-#     formatted_dict = {}
-#     for key, value in input_dict.items():
-#         formatted_value = value.replace("+", "%2B").replace(" ", "%20").replace(",", "")
-#         formatted_dict[key] = formatted_value
-#     return formatted_dict
-
-
-# def format_single_plus_code(plus_code):
-#     """Formats a single Plus Code string."""
-#     return plus_code.replace("+", "%2B").replace(" ", "%20").replace(",", "")
-
-
-# def kilometers_to_miles(km):
-#     """Convert kilometers to miles."""
-#     miles = int(km * 0.621371 * 1000) / 1000
-#     return miles
-
-
-# def extract_distance_and_convert(json_data):
-#     """Extract the distance from the JSON and convert it to miles."""
-#     # Parse the JSON data
-#     data = json.loads(json_data)
-
-#     # Access the distance value from the API call
-#     meters = data["rows"][0]["elements"][0]["distance"]["value"]
-
-#     # Convert meters to kilometers
-#     kilometers = meters / 1000
-
-#     # Convert kilometers to miles
-#     miles = kilometers_to_miles(kilometers)
-
-#     return miles
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
 
 
 # Function to calculate distances using Google Maps API for a dictionary of addresses
@@ -395,10 +465,16 @@ def review_unpaid_games(db_file):
         try:
             cur = conn.cursor()
             # Adjusted SQL query to select specific fields
-            sql = """ SELECT g.date, s.name, g.league_id, g.assignor_id, g.game_fee 
-                      FROM games g
-                      JOIN sites s ON g.site_id = s.id
-                      WHERE g.fee_paid = 0 """
+            # sql = """ SELECT g.date, s.name, g.league_id, g.assignor_id, g.game_fee
+            #           FROM games g
+            #           JOIN sites s ON g.site_id = s.id
+            #           WHERE g.fee_paid = 0 """
+            sql = """ 
+                SELECT g.id, g.date, g.site, g.league, 
+                       g.assignor, g.game_fee, g.fee_paid
+                FROM games g
+                WHERE g.fee_paid = 0
+            """
             cur.execute(sql)
             # cur.execute(
             #     "SELECT id, date, site, league, assignor, game_fee FROM games WHERE fee_paid = 0"
@@ -416,6 +492,7 @@ def review_unpaid_games(db_file):
                     "League",
                     "Assignor",
                     "Game Fee",
+                    "Paid",
                 ]
 
                 for game in unpaid_games:
@@ -431,6 +508,101 @@ def review_unpaid_games(db_file):
             conn.close()
     else:
         print("Error! cannot create the database connection.")
+
+
+def update_game_by_id(db_file):
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            game_id = input("Enter the ID of the game to update: ")
+            print("Which field would you like to update?")
+            print("[D]ate")
+            print("[S]ite")
+            print("[L]eague")
+            print("[A]ssignor")
+            print("[G]ame Fee")
+            print("[F]ee Paid")
+            print("[V]olunteer")
+            print("[M]ileage")
+            field = input("Enter the number of the field: ").lower()
+
+            # Define a dictionary to map user input to database columns
+            fields_map = {
+                "d": "date",
+                "s": "site",
+                "l": "league",
+                "a": "assignor",
+                "g": "game_fee",
+                "f": "fee_paid",
+                "v": "is_volunteer",
+                "m": "mileage",
+            }
+
+            if field in fields_map:
+                new_value = input(f"Enter the new value for {fields_map[field]}: ")
+                if field in ["5", "8"]:  # Assuming game_fee and mileage are numeric
+                    new_value = float(new_value)
+                if field in [
+                    "6",
+                    "7",
+                ]:  # Assuming fee_paid and is_volunteer are boolean
+                    new_value = new_value.lower() in ["yes", "true", "1"]
+
+                # Prepare the SQL query
+                sql = f"UPDATE games SET {fields_map[field]} = ? WHERE id = ?"
+                cur = conn.cursor()
+                cur.execute(sql, (new_value, game_id))
+                conn.commit()
+                print(f"Game with ID {game_id} has been updated.")
+            else:
+                print("Invalid field selection.")
+
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
+
+
+def database_operations_submenu():
+    db_operations = {
+        "r": return_to_main_menu,
+        "t": drop_tables,
+        "c": create_relation_tables,
+        "u": update_sites_with_missing_mileage,
+        "d": rebuild_database,
+    }
+
+    while True:
+        print("\nDatabase Operations")
+        print("[R]eturn to Main Menu")
+        print("[T]runcate ancillary tables")
+        print("[C]reate relational tables")
+        print("[U]pdate Sites with missing mileage")
+        print("[D]rop and rebuild database\n")
+        choice = input("Enter your choice: ").lower()
+
+        if choice == "r":
+            break
+        elif choice in db_operations:
+            confirmation = input("Are you sure?? (yes/no) ").lower()
+            if confirmation == "yes":
+                db_operations[choice]()
+        else:
+            print("Invalid choice. Please try again.")
+
+
+def update_sites_with_missing_mileage():
+    # This function should handle the logic of updating the sites table
+    # by querying the API for missing mileage values and updating the database.
+    pass
+
+
+def return_to_main_menu():
+    # This function simply breaks the loop in the database_operations_submenu
+    # to return to the main menu.
+    pass
 
 
 def rebuild_database(db_file):
@@ -477,16 +649,13 @@ def rebuild_database(db_file):
                 CREATE TABLE IF NOT EXISTS games (
                     id INTEGER PRIMARY KEY,
                     date TEXT,
-                    site_id INTEGER,
-                    league_id INTEGER,
-                    assignor_id INTEGER,
-                    game_fee INT,
+                    site TEXT,
+                    league TEXT,
+                    assignor TEXT,
+                    game_fee INTEGER,
                     fee_paid BOOLEAN,
                     is_volunteer BOOLEAN,
-                    mileage FLOAT,
-                    FOREIGN KEY (site_id) REFERENCES sites(id),
-                    FOREIGN KEY (league_id) REFERENCES leagues(id),
-                    FOREIGN KEY (assignor_id) REFERENCES assignors(id)
+                    mileage FLOAT
                 )
             """
             )
@@ -502,5 +671,4 @@ def rebuild_database(db_file):
 
 
 # Usage
-db_file = "officiating.db"
-rebuild_database(db_file)
+# rebuild_database(db_file)
