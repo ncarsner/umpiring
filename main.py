@@ -22,7 +22,6 @@ class Game:
     game_fee: int = field(init=False)
     fee_paid: bool = False
     is_volunteer: bool = False
-    # mileage: float = 0.0
     mileage: float = field(init=False)
 
     @staticmethod

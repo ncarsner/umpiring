@@ -1,14 +1,25 @@
 # Import necessary classes and functions
 from main import Game
 import functions
+import random
+import leagues
+import sites
+from datetime import date, timedelta
 
 db_file = "officiating.db"
+
+random_date = date.today() + timedelta(days=random.randint(1, 120))
+random_site = random.choice(list(sites.ballfields.keys()))
+random_league = random.choice(list(leagues.game_rates.keys()))
 
 # TSSAA High School game
 game = Game(
     # date = "2024-05-12",
-    site="Centennial HS",  # Requires site string or select from top 5
-    league="tssaa_hs",  # Requires league string or select from top 5
+    date=random_date,
+    # site="Centennial HS",  # Requires site string or select from top 5
+    site=random_site,
+    # league="tssaa_hs",  # Requires league string or select from top 5
+    league=random_league,
     # assignor=None,  # Get assignor from leagues
     # game_fee=None,
     # fee_paid=False,
@@ -22,7 +33,7 @@ def main_menu():
         "u": lambda: functions.update_game_by_id(db_file),
         "v": lambda: functions.review_unpaid_games(db_file),
         "s": lambda: functions.display_season_summary(db_file),
-        "d": lambda: functions.database_operations_submenu(),
+        "d": lambda: functions.database_operations_submenu,
         "x": lambda: functions.exit_application(),
     }
 
