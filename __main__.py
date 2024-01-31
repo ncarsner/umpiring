@@ -1,5 +1,5 @@
-# Import necessary classes and functions
-from main import Game
+# Import necessary
+from classes import Game
 import functions
 import random
 import leagues
@@ -12,7 +12,7 @@ random_date = date.today() + timedelta(days=random.randint(1, 120))
 random_site = random.choice(list(sites.ballfields.keys()))
 random_league = random.choice(list(leagues.game_rates.keys()))
 
-# TSSAA High School game
+# game to be added
 game = Game(
     # date = "2024-05-12",
     date=random_date,
@@ -29,11 +29,11 @@ game = Game(
 
 def main_menu():
     menu_options = {
-        "a": lambda: functions.add_game_to_db_v4(db_file, game),
+        "a": lambda: functions.add_game_to_db(db_file, game),
         "u": lambda: functions.update_game_by_id(db_file),
         "v": lambda: functions.review_unpaid_games(db_file),
         "s": lambda: functions.display_season_summary(db_file),
-        "d": lambda: functions.database_operations_submenu,
+        "d": lambda: functions.database_operations_submenu(),
         "x": lambda: functions.exit_application(),
     }
 
@@ -55,16 +55,6 @@ def main_menu():
             break
         else:
             print("Invalid choice. Please try again.")
-
-
-def update_game():
-    # Logic to select and update an existing game record
-    pass
-
-
-def database_ops():
-    # Logic to update mileage for sites
-    pass
 
 
 if __name__ == "__main__":
