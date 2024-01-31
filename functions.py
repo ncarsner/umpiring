@@ -68,8 +68,11 @@ def display_season_summary(db_file):
         try:
             cur = conn.cursor()
             sql = """
-                SELECT assignor, league, COUNT(*) as total_games, 
-                       SUM(game_fee) as total_fees, SUM(mileage) as total_mileage
+                SELECT assignor, league,
+                    COUNT(1) as total_games,
+                    SUM(CASE WHEN fee_paid = 0 then game_fee else 0 end) as total_owed,
+                    SUM(CASE WHEN fee_paid = 1 then game_fee else 0 end) as total_paid,
+                    SUM(mileage) as total_mileage
                 FROM games
                 GROUP BY assignor, league
             """
@@ -78,18 +81,19 @@ def display_season_summary(db_file):
 
             if summary:
                 table = PrettyTable()
+                table.title = "Season Summary"
                 table.field_names = [
                     "Assignor",
                     "League",
-                    "Total Games",
-                    "Total Fees",
-                    "Total Mileage",
+                    "Games",
+                    "Owed",
+                    "Paid",
+                    "Mileage",
                 ]
 
                 for row in summary:
                     table.add_row(row)
 
-                print("Season Summary:\n")
                 print(table)
             else:
                 print("No data found.")
@@ -100,6 +104,49 @@ def display_season_summary(db_file):
             conn.close()
     else:
         print("Error! cannot create the database connection.")
+
+
+def review_all_games(db_file):
+    """Function to review unpaid games, with specific fields"""
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            cur = conn.cursor()
+            sql = """ 
+                SELECT id, date, site, assignor, game_fee,
+                    CASE WHEN fee_paid = 1 then 'Y' else '' end as fee_paid,
+                    CASE WHEN is_volunteer = 1 then 'Y' else '' end as is_vol
+                FROM games
+            """
+            cur.execute(sql)
+            all_games = cur.fetchall()
+
+            if all_games:
+                table = PrettyTable()
+                table.title = "Master Ledger"
+                table.field_names = [
+                    "ID",
+                    "Date",
+                    "Site",
+                    "Assignor",
+                    "Fee",
+                    "Paid",
+                    "Vol",
+                ]
+
+                for game in all_games:
+                    table.add_row(game)
+
+                print(table)
+            else:
+                print("No unpaid games found.")
+
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! Cannot create database connection.")
 
 
 def review_unpaid_games(db_file):
@@ -123,6 +170,7 @@ def review_unpaid_games(db_file):
 
             if unpaid_games:
                 table = PrettyTable()
+                table.title = "Unpaid Games"
                 table.field_names = [
                     "ID",
                     "Date",
@@ -178,12 +226,9 @@ def update_game_by_id(db_file):
 
             if field in fields_map:
                 new_value = input(f"Enter the new value for {fields_map[field]}: ")
-                if field in ["g", "m"]:  # Assuming game_fee, mileage are numeric
+                if field in ["g", "m"]:  # numeric: game_fee, mileage
                     new_value = float(new_value)
-                if field in [
-                    "f",
-                    "v",
-                ]:  # Assuming fee_paid, is_volunteer are bool
+                if field in ["f", "v"]:  # boolean: fee_paid, is_volunteer
                     new_value = new_value.lower() in ["yes", "y", "true", "1"]
 
                 # Prepare the SQL query
@@ -213,7 +258,7 @@ def database_operations_submenu():
     }
 
     while True:
-        print("\nDatabase Operations")
+        print(" Database Operations ".center(45, "*"))
         print("E[x]it to Main Menu")
         print("[D]rop tables")
         print("[C]reate games table")
@@ -232,12 +277,11 @@ def database_operations_submenu():
 
 
 def return_to_main_menu():
-    # This function simply breaks the loop in the database_operations_submenu
-    # to return to the main menu.
+    # breaks database_operations_submenu loop to return to main
     pass
 
 
-# Function to calculate distances using Google Maps API for a dictionary of addresses
+# Gets distances using Google Maps API for a dictionary of addresses
 def calculate_distances(api_key, default_from, destination_addresses):
     gmaps = googlemaps.Client(key=api_key)
 
