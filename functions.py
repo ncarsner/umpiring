@@ -209,7 +209,7 @@ def database_operations_submenu():
         "d": db_handler.drop_tables,
         "c": db_handler.create_games_table,
         "m": db_handler.create_relation_tables,
-        "re": db_handler.initialize_database,
+        "re": db_handler.rebuild_database,
     }
 
     while True:
