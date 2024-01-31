@@ -18,8 +18,8 @@ game_assignors = {
     "mtaba": "4 Star Sports",
     "mtaba_post": "4 Star Sports",
     "ovl": "TruBlu",
-    "trublu": "TruBlu",
-    "trublu_fall": "TruBlu",
+    "tru": "TruBlu",
+    "tru_fall": "TruBlu",
     "ll_majors": "4 Star Sports",
     "ll_minors": "4 Star Sports",
 }
