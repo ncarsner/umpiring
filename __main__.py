@@ -1,5 +1,5 @@
 # Import necessary
-from classes import Game
+from classes import Game, DatabaseHandler
 import functions
 import random
 import leagues
@@ -32,6 +32,7 @@ def main_menu():
         "a": lambda: functions.add_game_to_db(db_file, game),
         "u": lambda: functions.update_game_by_id(db_file),
         "v": lambda: functions.review_unpaid_games(db_file),
+        "b": lambda: functions.bulk_update_games_paid_status(DatabaseHandler(db_file)),
         "g": lambda: functions.review_all_games(db_file),
         "s": lambda: functions.display_season_summary(db_file),
         "d": lambda: functions.database_operations_submenu(),
@@ -43,6 +44,7 @@ def main_menu():
         print(" Umpiring Revenue and Travel Tracker ".center(45, "*"))
         print("[A]dd Game")
         print("[U]pdate Game")
+        print("[B]ulk Mark Paid Games")
         print("[V]iew Unpaid Games")
         print("[G]ame Ledger")
         print("[S]eason Summary")
