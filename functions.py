@@ -248,6 +248,36 @@ def update_game_by_id(db_file):
         print("Error! cannot create the database connection.")
 
 
+def bulk_update_games_paid_status(db_handler):
+    unpaid_game_ids = db_handler.fetch_unpaid_game_ids()
+    if not unpaid_game_ids:
+        print("There are no unpaid games to update.")
+        return
+
+    print("Unpaid Game IDs: ", unpaid_game_ids)
+    user_input = input("Enter game IDs to mark as paid (comma-separated): ")
+
+    # Split the input and convert to integers
+    try:
+        game_ids = [int(id.strip()) for id in user_input.split(",")]
+    except ValueError:
+        print("Invalid input. Please enter valid game IDs.")
+        return
+
+    # Validate that all entered IDs are unpaid game IDs
+    if not all(game_id in unpaid_game_ids for game_id in game_ids):
+        print("Invalid game IDs. Please enter only unpaid game IDs.")
+        return
+
+    # Confirm update
+    confirmation = input("Confirm mark as paid? ").lower()
+    if confirmation in ["yes", "y", 1]:
+        db_handler.bulk_update_games_paid_status(game_ids, True)
+        print(f"Games {game_ids} have been marked as paid.")
+    else:
+        print("Operation canceled.")
+
+
 def database_operations_submenu():
     db_operations = {
         "x": return_to_main_menu,

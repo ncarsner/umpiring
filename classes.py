@@ -115,6 +115,24 @@ class DatabaseHandler:
         except Error as e:
             print(e)
 
+    def create_mileage_table(self, conn):
+        """Create a table in the SQLite database"""
+        try:
+            c = conn.cursor()
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mileage (
+                    id INTEGER PRIMARY KEY autoincrement,
+                    name TEXT NOT NULL,
+                    mileage FLOAT,
+                    UNIQUE(name)
+                );
+            """
+            )
+            print("Table created successfully")
+        except Error as e:
+            print(e)
+
     def create_relation_tables(self, conn):
         """Create or update relation tables in the SQLite database to include mileage in sites"""
         try:
@@ -181,6 +199,44 @@ class DatabaseHandler:
                 print("Database rebuilt successfully")
             except sqlite3.Error as e:
                 print(f"An error occurred while rebuilding the database: {e}")
+            finally:
+                conn.close()
+        else:
+            print("Error! cannot create the database connection.")
+
+    def fetch_unpaid_game_ids(self):
+        """Fetch IDs of unpaid games."""
+        conn = self.create_connection()
+        if conn is not None:
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT id FROM games WHERE fee_paid = 0")
+                unpaid_games = cur.fetchall()
+                return [game[0] for game in unpaid_games]  # Return a list of IDs
+            except sqlite3.Error as e:
+                print(f"An error occurred: {e}")
+            finally:
+                conn.close()
+        else:
+            print("Error! cannot create the database connection.")
+        return []
+
+    def bulk_update_games_paid_status(self, game_ids, paid_status):
+        """Bulk update the paid status of multiple games."""
+        conn = self.create_connection()
+        if conn is not None:
+            try:
+                cur = conn.cursor()
+                # Prepare the SQL query to update the fee_paid status
+                sql = "UPDATE games SET fee_paid = ? WHERE id IN ({seq})".format(
+                    seq=",".join(["?"] * len(game_ids))
+                )
+                # Execute the query with paid_status and the list of game_ids
+                cur.execute(sql, [int(paid_status)] + game_ids)
+                conn.commit()
+                print(f"{cur.rowcount} games have been updated.")
+            except sqlite3.Error as e:
+                print(f"An error occurred: {e}")
             finally:
                 conn.close()
         else:
