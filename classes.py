@@ -73,14 +73,12 @@ class DatabaseHandler:
 
     def create_connection(self):
         """Create a database connection to a SQLite database"""
-        conn = None
         try:
             conn = sqlite3.connect(self.db_file)
-            # print(f"SQLite DB connected: version {sqlite3.version}")
             return conn
         except Error as e:
             print(e)
-        return conn
+        return None
 
     def initialize_database(self):
         """Initialize the database with the required tables"""
@@ -115,23 +113,26 @@ class DatabaseHandler:
         except Error as e:
             print(e)
 
-    def create_mileage_table(self, conn):
-        """Create a table in the SQLite database"""
-        try:
-            c = conn.cursor()
-            c.execute(
-                """
-                CREATE TABLE IF NOT EXISTS mileage (
-                    id INTEGER PRIMARY KEY autoincrement,
-                    name TEXT NOT NULL,
-                    mileage FLOAT,
-                    UNIQUE(name)
-                );
-            """
-            )
-            print("Table created successfully")
-        except Error as e:
-            print(e)
+    def create_sites_table(self):
+        conn = self.create_connection()
+        if conn is not None:
+            try:
+                c = conn.cursor()
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS sites (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL UNIQUE,
+                        mileage FLOAT DEFAULT 0
+                    )
+                """)
+                conn.commit()
+                print("Table created successfully")
+            except Error as e:
+                print(e)
+            finally:
+                conn.close()
+        else:
+            print("Error! Cannot create the database connection.")
 
     def create_relation_tables(self, conn):
         """Create or update relation tables in the SQLite database to include mileage in sites"""
@@ -241,3 +242,5 @@ class DatabaseHandler:
                 conn.close()
         else:
             print("Error! cannot create the database connection.")
+
+
