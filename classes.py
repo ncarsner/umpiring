@@ -1,5 +1,5 @@
 import configparser
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, InitVar
 from datetime import datetime
 import sqlite3
 from sqlite3 import Error
@@ -20,7 +20,8 @@ db_file = "officiating.db"
 class Game:
     site: str
     league: str
-    date: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
+    db_handler: InitVar["DatabaseHandler"]
+    date: str = field(default_factory=lambda: datetime.now().strftime("%Y%m%d"))
     assignor: str = field(init=False)
     game_fee: int = field(init=False)
     fee_paid: bool = False
@@ -36,9 +37,7 @@ class Game:
 
         distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
         if distance_result["rows"][0]["elements"][0]["status"] == "OK":
-            distance_text = distance_result["rows"][0]["elements"][0]["distance"][
-                "text"
-            ]
+            distance_text = distance_result["rows"][0]["elements"][0]["distance"]["text"]
             if "km" in distance_text:
                 distance_km = float(distance_text.split()[0].replace(",", ""))
                 distance_miles = round(distance_km * 0.621371, 1)
@@ -49,12 +48,16 @@ class Game:
         else:
             return 0.0
 
-    def __post_init__(self):
+    def __post_init__(self, db_handler):
         self.assignor = self.get_assignor_from_league(self.league)
         self.game_fee = self.get_game_fee_from_league(self.league)
-        self.mileage = Game.calculate_distance_for_site(
-            api_key, default_from, self.site, sites.ballfields
-        )
+        # self.mileage = Game.calculate_distance_for_site(api_key, default_from, self.site, sites.ballfields)
+        self.mileage = self.get_site_mileage_from_db(db_handler, self.site)
+
+    @staticmethod
+    def get_site_mileage_from_db(db_handler, site_name):
+        mileage = db_handler.get_site_mileage(site_name)
+        return mileage if mileage is not None else 0
 
     @staticmethod
     def get_game_fee_from_league(league):
@@ -68,8 +71,13 @@ class Game:
 
 
 class DatabaseHandler:
-    def __init__(self, db_file):
+    # def __init__(self, db_file):
+    #     self.db_file = db_file
+
+    def __init__(self, db_file, api_key=api_key):
         self.db_file = db_file
+        self.api_key = api_key
+        self.gmaps = googlemaps.Client(key=self.api_key)
 
     def create_connection(self):
         """Create a database connection to a SQLite database"""
@@ -118,13 +126,15 @@ class DatabaseHandler:
         if conn is not None:
             try:
                 c = conn.cursor()
-                c.execute("""
+                c.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS sites (
                         id INTEGER PRIMARY KEY,
                         name TEXT NOT NULL UNIQUE,
                         mileage FLOAT DEFAULT 0
                     )
-                """)
+                """
+                )
                 conn.commit()
                 print("Table created successfully")
             except Error as e:
@@ -142,7 +152,7 @@ class DatabaseHandler:
                 """
                 CREATE TABLE IF NOT EXISTS sites (
                     id INTEGER PRIMARY KEY,
-                    name TEXT UNIQUE,
+                    name TEXT NOT NULL UNIQUE,
                     mileage INTEGER DEFAULT 0.0
                 );
                 CREATE TABLE IF NOT EXISTS leagues (
@@ -165,7 +175,6 @@ class DatabaseHandler:
         if conn is not None:
             try:
                 c = conn.cursor()
-                # SQL commands to drop tables
                 c.execute("DROP TABLE IF EXISTS games")
                 c.execute("DROP TABLE IF EXISTS sites")
                 c.execute("DROP TABLE IF EXISTS leagues")
@@ -199,7 +208,7 @@ class DatabaseHandler:
                 conn.commit()
                 print("Database rebuilt successfully")
             except sqlite3.Error as e:
-                print(f"An error occurred while rebuilding the database: {e}")
+                print(f"An error occurred: {e}")
             finally:
                 conn.close()
         else:
@@ -229,9 +238,7 @@ class DatabaseHandler:
             try:
                 cur = conn.cursor()
                 # Prepare the SQL query to update the fee_paid status
-                sql = "UPDATE games SET fee_paid = ? WHERE id IN ({seq})".format(
-                    seq=",".join(["?"] * len(game_ids))
-                )
+                sql = "UPDATE games SET fee_paid = ? WHERE id IN ({seq})".format(seq=",".join(["?"] * len(game_ids)))
                 # Execute the query with paid_status and the list of game_ids
                 cur.execute(sql, [int(paid_status)] + game_ids)
                 conn.commit()
@@ -243,4 +250,101 @@ class DatabaseHandler:
         else:
             print("Error! cannot create the database connection.")
 
+    def populate_site_distances(self, default_from=default_from, site_dict=sites.ballfields):
+        conn = self.create_connection()
+        if conn is not None:
+            try:
+                for site_name, address in site_dict.items():
+                    distance_result = self.gmaps.distance_matrix(default_from, address, mode="driving")
+                    if distance_result["rows"][0]["elements"][0]["status"] == "OK":
+                        distance_text = distance_result["rows"][0]["elements"][0]["distance"]["text"]
+                        distance_km = float(distance_text.split()[0].replace(",", ""))
+                        if "km" in distance_text:
+                            distance_miles = round(distance_km * 0.621371, 1)
+                        else:
+                            distance_miles = distance_km
+                        with conn:
+                            conn.execute(
+                                "INSERT OR REPLACE INTO sites (name, mileage) VALUES (?, ?)",
+                                (site_name, distance_miles),
+                            )
+                    else:
+                        print(f"Distance not found for site: {site_name}")
+                conn.commit()
+            except Error as e:
+                print(e)
+            finally:
+                conn.close()
+        else:
+            print("Error! cannot create the database connection.")
 
+    def get_site_mileage(self, site_name):
+        conn = self.create_connection()
+        mileage = None
+        if conn is not None:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT mileage FROM sites WHERE name = ?", (site_name,))
+                result = cursor.fetchone()
+                if result:
+                    mileage = result[0]
+            except Error as e:
+                print(e)
+            finally:
+                conn.close()
+        return mileage
+
+    def update_or_add_site(self, site_name, mileage):
+        """Update mileage for an existing site or add a new site with its mileage."""
+        conn = self.create_connection()
+        if conn is not None:
+            try:
+                cursor = conn.cursor()
+                # Check if the site already exists
+                cursor.execute("SELECT id FROM sites WHERE name = ?", (site_name,))
+                site = cursor.fetchone()
+                if site:
+                    # Update mileage for the existing site
+                    cursor.execute("UPDATE sites SET mileage = ? WHERE name = ?", (mileage, site_name))
+                else:
+                    # Insert a new site with mileage
+                    cursor.execute("INSERT INTO sites (name, mileage) VALUES (?, ?)", (site_name, mileage))
+                conn.commit()
+                print(f"Site '{site_name}' updated/added successfully.")
+            except sqlite3.Error as e:
+                print(f"An error occurred while updating/adding the site: {e}")
+            finally:
+                conn.close()
+        else:
+            print("Error! cannot create the database connection.")
+
+    def list_sites(self):
+        """List all sites and their mileages from the sites table."""
+        conn = self.create_connection()
+        if conn is not None:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT name, mileage FROM sites ORDER BY name")
+                sites = cursor.fetchall()
+                for site in sites:
+                    print(f"Site: {site[0]}, Mileage: {site[1]}")
+            except sqlite3.Error as e:
+                print(f"An error occurred: {e}")
+            finally:
+                conn.close()
+        else:
+            print("Error! cannot create the database connection.")
+
+
+db_handler = DatabaseHandler(db_file)
+
+# Call API to populate sites milage in database
+# db_handler.populate_site_distances()
+
+# List all sites
+# print(db_handler.list_sites())
+
+# # Update mileage for an existing site or add a new site
+# site_name = "Central Park"
+# mileage = 12.5  # Example mileage
+# db_handler.update_or_add_site(site_name, mileage)

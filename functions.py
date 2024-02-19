@@ -62,6 +62,28 @@ def add_game_to_db(db_file, game):
         print("Error! cannot create the database connection.")
 
 
+def delete_game(db_file):
+    """Delete a game by its ID."""
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            game_id = input("Enter Game ID to remove: ")
+            cursor = conn.cursor()
+            # SQL statement to delete a game by ID
+            cursor.execute("DELETE FROM games WHERE id = ?", (game_id,))
+            conn.commit()
+            if cursor.rowcount > 0:
+                print(f"Game ID {game_id} deleted successfully.")
+            else:
+                print(f"No game found with ID {game_id}.")
+        except sqlite3.Error as e:
+            print(f"An error occurred while trying to delete the game: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
+
+
 def display_season_summary(db_file):
     conn = create_connection(db_file)
     if conn is not None:
@@ -254,7 +276,7 @@ def bulk_update_games_paid_status(db_handler):
         print("There are no unpaid games to update.")
         return
 
-    print("Unpaid Game IDs: ", unpaid_game_ids)
+    print("Game IDs: ", unpaid_game_ids)
     user_input = input("Enter game IDs to mark as paid (comma-separated): ")
 
     # Split the input and convert to integers
@@ -266,14 +288,14 @@ def bulk_update_games_paid_status(db_handler):
 
     # Validate that all entered IDs are unpaid game IDs
     if not all(game_id in unpaid_game_ids for game_id in game_ids):
-        print("Invalid game IDs. Please enter only unpaid game IDs.")
+        print("Invalid game IDs. Enter only unpaid game IDs.")
         return
 
     # Confirm update
     confirmation = input("Confirm mark as paid? ").lower()
     if confirmation in ["yes", "y", 1]:
         db_handler.bulk_update_games_paid_status(game_ids, True)
-        print(f"Games {game_ids} have been marked as paid.")
+        print(f"Games {game_ids} marked as paid.")
     else:
         print("Operation canceled.")
 
@@ -299,7 +321,7 @@ def database_operations_submenu():
         if choice == "x":
             break
         elif choice in db_operations:
-            confirmation = input("Are you sure?? (yes/no) ").lower()
+            confirmation = input("Are you sure?? ").lower()
             if confirmation in ["yes", "y"]:
                 db_operations[choice]()
         else:
@@ -314,7 +336,6 @@ def return_to_main_menu():
 # Gets distances using Google Maps API for a dictionary of addresses
 def calculate_distances(api_key, default_from, destination_addresses):
     gmaps = googlemaps.Client(key=api_key)
-
     distances = {}
 
     # Iterate over the destination addresses dictionary
@@ -323,9 +344,7 @@ def calculate_distances(api_key, default_from, destination_addresses):
         distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
 
         if distance_result["rows"][0]["elements"][0]["status"] == "OK":
-            distance_text = distance_result["rows"][0]["elements"][0]["distance"][
-                "text"
-            ]
+            distance_text = distance_result["rows"][0]["elements"][0]["distance"]["text"]
             # Convert from km to miles
             if "km" in distance_text:
                 distance_km = float(distance_text.split()[0].replace(",", ""))
@@ -335,6 +354,35 @@ def calculate_distances(api_key, default_from, destination_addresses):
                 distances[name] = distance_text
         else:
             distances[name] = "Distance not found"
+
+    return distances
+
+
+def calculate_and_cache_distances(api_key, default_from, ballfields, db_handler=db_handler):
+    gmaps = googlemaps.Client(key=api_key)
+    distances = {}
+
+    for site_name, address in ballfields.items():
+        # Check if mileage is already cached in the database
+        cached_mileage = db_handler.get_mileage_for_site(site_name)
+        if cached_mileage is not None:
+            distances[site_name] = f"{cached_mileage} miles"
+            continue
+
+        # API call for sites not cached
+        distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
+        if distance_result["rows"][0]["elements"][0]["status"] == "OK":
+            distance_text = distance_result["rows"][0]["elements"][0]["distance"]["text"]
+            if "km" in distance_text:
+                distance_km = float(distance_text.split()[0].replace(",", ""))
+                distance_miles = round(distance_km * 0.621371, 1)
+            else:
+                distance_miles = float(distance_text.split()[0])  # Assuming miles directly if not km
+
+            distances[site_name] = f"{distance_miles} miles"
+            db_handler.save_mileage_for_site(site_name, distance_miles)
+        else:
+            distances[site_name] = "Distance not found"
 
     return distances
 
