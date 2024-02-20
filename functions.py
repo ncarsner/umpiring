@@ -3,6 +3,8 @@ from sqlite3 import Error
 from prettytable import PrettyTable
 import sys
 from classes import DatabaseHandler
+import sites
+import leagues
 
 import googlemaps
 
@@ -31,8 +33,12 @@ def add_game_to_db(db_file, game):
     conn = create_connection(db_file)
     if conn is not None:
         try:
-            if not game.site or not game.league:
-                raise ValueError("Site and League required.")
+            if not game.site or game.site not in sites.ballfields:
+                raise ValueError(f"{game.site} not recognized.")
+            if not game.league or game.league not in leagues.game_rates:
+                raise ValueError(f"{game.league} not recognized")
+            # if not game.site or not game.league:
+            #     raise ValueError("Site and League required.")
 
             sql = """ INSERT INTO games(date, site, league, assignor, game_fee, fee_paid, is_volunteer, mileage)
                       VALUES(?,?,UPPER(?),?,?,?,?,?) """
@@ -94,7 +100,7 @@ def display_season_summary(db_file):
                     COUNT(1) as total_games,
                     SUM(CASE WHEN fee_paid = 0 then game_fee else 0 end) as total_owed,
                     SUM(CASE WHEN fee_paid = 1 then game_fee else 0 end) as total_paid,
-                    SUM(mileage) as total_mileage
+                    ROUND(SUM(mileage),1) as total_mileage
                 FROM games
                 GROUP BY assignor, league
             """
@@ -385,36 +391,3 @@ def calculate_and_cache_distances(api_key, default_from, ballfields, db_handler=
             distances[site_name] = "Distance not found"
 
     return distances
-
-
-# def get_sites_with_zero_mileage(db_file):
-#     """Retrieve sites with 0 mileage from the database"""
-#     conn = create_connection(db_file)
-#     try:
-#         cur = conn.cursor()
-#         cur.execute("SELECT name FROM sites WHERE mileage = 0")
-#         sites = cur.fetchall()
-#         return [site[0] for site in sites]
-#     except sqlite3.Error as e:
-#         print(e)
-#     finally:
-#         conn.close()
-#     return []
-
-
-# def update_zero_mileage_sites(db_file, api_key, default_from):
-#     """Update sites with 0 mileage using Google Maps API"""
-#     sites = get_sites_with_zero_mileage(db_file)
-#     if sites:
-#         destination_addresses = {
-#             site: site for site in sites
-#         }  # Assuming site name is the address
-#         distances = calculate_distances(api_key, default_from, destination_addresses)
-
-#         for site, distance in distances.items():
-#             if "miles" in distance:
-#                 mileage = float(distance.split()[0])
-#                 update_site_mileage(db_file, site, mileage)
-#                 print(f"Updated mileage for {site}: {mileage} miles")
-#             else:
-#                 print(f"Distance not found for {site}")
