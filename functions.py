@@ -1,12 +1,14 @@
+from datetime import datetime
 import sqlite3
 from sqlite3 import Error
 from prettytable import PrettyTable
 import sys
+
+import googlemaps
+
 from classes import DatabaseHandler
 import sites
 import leagues
-
-import googlemaps
 
 db_file = "officiating.db"
 db_handler = DatabaseHandler(db_file)
@@ -95,14 +97,16 @@ def display_season_summary(db_file):
     if conn is not None:
         try:
             cur = conn.cursor()
-            sql = """
-                SELECT assignor, league,
+            current_year = str(datetime.now().year)[-2:]
+            sql = f"""
+                SELECT league,
                     COUNT(1) as total_games,
                     SUM(CASE WHEN fee_paid = 0 then game_fee else 0 end) as total_owed,
                     SUM(CASE WHEN fee_paid = 1 then game_fee else 0 end) as total_paid,
                     ROUND(SUM(mileage),1) as total_mileage
                 FROM games
-                GROUP BY assignor, league
+                WHERE substr(date, 1, 2) = '{current_year}'
+                GROUP BY league
             """
             cur.execute(sql)
             summary = cur.fetchall()
@@ -111,7 +115,6 @@ def display_season_summary(db_file):
                 table = PrettyTable()
                 table.title = "Season Summary"
                 table.field_names = [
-                    "Assignor",
                     "League",
                     "Games",
                     "Owed",
@@ -140,11 +143,13 @@ def review_all_games(db_file):
     if conn is not None:
         try:
             cur = conn.cursor()
-            sql = """ 
+            current_year = str(datetime.now().year)[-2:]
+            sql = f""" 
                 SELECT id, date, site, assignor, game_fee,
                     CASE WHEN fee_paid = 1 then 'Y' else '' end as fee_paid,
                     CASE WHEN is_volunteer = 1 then 'Y' else '' end as is_vol
                 FROM games
+                WHERE substr(date, 1, 2) = '{current_year}'
             """
             cur.execute(sql)
             all_games = cur.fetchall()
@@ -183,15 +188,17 @@ def review_unpaid_games(db_file):
     if conn is not None:
         try:
             cur = conn.cursor()
+            current_year = str(datetime.now().year)[-2:]
             # Adjusted SQL query to select specific fields
             # sql = """ SELECT g.date, s.name, g.league_id, g.assignor_id, g.game_fee
             #           FROM games g
             #           JOIN sites s ON g.site_id = s.id
             #           WHERE g.fee_paid = 0 """
-            sql = """ 
+            sql = f""" 
                 SELECT id, date, site, league, assignor, game_fee, fee_paid
                 FROM games
                 WHERE fee_paid = 0
+                AND substr(date, 1, 2) = '{current_year}'
             """
             cur.execute(sql)
             unpaid_games = cur.fetchall()
@@ -350,7 +357,9 @@ def calculate_distances(api_key, default_from, destination_addresses):
         distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
 
         if distance_result["rows"][0]["elements"][0]["status"] == "OK":
-            distance_text = distance_result["rows"][0]["elements"][0]["distance"]["text"]
+            distance_text = distance_result["rows"][0]["elements"][0]["distance"][
+                "text"
+            ]
             # Convert from km to miles
             if "km" in distance_text:
                 distance_km = float(distance_text.split()[0].replace(",", ""))
@@ -364,7 +373,37 @@ def calculate_distances(api_key, default_from, destination_addresses):
     return distances
 
 
-def calculate_and_cache_distances(api_key, default_from, ballfields, db_handler=db_handler):
+def update_zero_mileage_entries(api_key, default_from, db_handler):
+    gmaps = googlemaps.Client(key=api_key)
+    zero_mileage_sites = db_handler.fetch_sites_with_zero_mileage()
+
+    if not zero_mileage_sites:
+        print("No sites with zero mileage found.")
+        return
+
+    for site_name, address in zero_mileage_sites.items():
+        distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
+        if distance_result["rows"][0]["elements"][0]["status"] == "OK":
+            distance_text = distance_result["rows"][0]["elements"][0]["distance"][
+                "text"
+            ]
+            if "km" in distance_text:
+                distance_km = float(distance_text.split()[0].replace(",", ""))
+                distance_miles = round(distance_km * 0.621371, 1)
+            else:
+                distance_miles = float(
+                    distance_text.split()[0]
+                )  # Assuming miles directly if not km
+
+            db_handler.save_mileage_for_site(site_name, distance_miles)
+            print(f"Updated {site_name} with {distance_miles} miles.")
+        else:
+            print(f"Could not update {site_name}. Distance not found.")
+
+
+def calculate_and_cache_distances(
+    api_key, default_from, ballfields, db_handler=db_handler
+):
     gmaps = googlemaps.Client(key=api_key)
     distances = {}
 
@@ -378,12 +417,16 @@ def calculate_and_cache_distances(api_key, default_from, ballfields, db_handler=
         # API call for sites not cached
         distance_result = gmaps.distance_matrix(default_from, address, mode="driving")
         if distance_result["rows"][0]["elements"][0]["status"] == "OK":
-            distance_text = distance_result["rows"][0]["elements"][0]["distance"]["text"]
+            distance_text = distance_result["rows"][0]["elements"][0]["distance"][
+                "text"
+            ]
             if "km" in distance_text:
                 distance_km = float(distance_text.split()[0].replace(",", ""))
                 distance_miles = round(distance_km * 0.621371, 1)
             else:
-                distance_miles = float(distance_text.split()[0])  # Assuming miles directly if not km
+                distance_miles = float(
+                    distance_text.split()[0]
+                )  # Assuming miles directly if not km
 
             distances[site_name] = f"{distance_miles} miles"
             db_handler.save_mileage_for_site(site_name, distance_miles)

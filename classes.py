@@ -335,6 +335,53 @@ class DatabaseHandler:
         else:
             print("Error! cannot create the database connection.")
 
+    def add_new_sites_mileages(self, sites, default_from):
+        """Adds mileages for new sites to the database that do not exist in the sites table."""
+        existing_sites = self.fetch_existing_sites()
+        conn = self.create_connection()
+        if conn is not None:
+            try:
+                cursor = conn.cursor()
+                for site_name, address in sites.items():
+                    if site_name not in existing_sites:
+                        # Calculate mileage since it's a new site
+                        distance_result = self.gmaps.distance_matrix(default_from, address, mode="driving")
+                        if distance_result["rows"][0]["elements"][0]["status"] == "OK":
+                            distance_text = distance_result["rows"][0]["elements"][0]["distance"]["text"]
+                            if "km" in distance_text:
+                                distance_km = float(distance_text.split()[0].replace(",", ""))
+                                distance_miles = round(distance_km * 0.621371, 1)
+                            else:
+                                distance_miles = float(distance_text.split()[0])
+                            cursor.execute(
+                                "INSERT INTO sites (name, mileage) VALUES (?, ?)", (site_name, distance_miles)
+                            )
+                            print(f"Added new site: {site_name} with mileage: {distance_miles} miles.")
+                        else:
+                            print(f"Distance not found for site: {site_name}")
+                conn.commit()
+            except sqlite3.Error as e:
+                print(f"An error occurred: {e}")
+            finally:
+                conn.close()
+        else:
+            print("Error! cannot create the database connection.")
+
+    def fetch_existing_sites(self):
+        """Fetches existing site names from the database."""
+        conn = self.create_connection()
+        sites = set()
+        if conn is not None:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sites")
+                sites = {row[0] for row in cursor.fetchall()}
+            except sqlite3.Error as e:
+                print(f"An error occurred while fetching existing sites: {e}")
+            finally:
+                conn.close()
+        return sites
+
 
 db_handler = DatabaseHandler(db_file)
 

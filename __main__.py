@@ -5,6 +5,13 @@ import random
 import leagues
 import sites
 from datetime import date, timedelta
+import configparser
+
+# Database setup
+config = configparser.ConfigParser()
+config.read("config.ini")
+API_KEY = config["credentials"]["api_key"]
+DEFAULT_FROM = config["credentials"]["default_from"]
 
 db_file = "officiating.db"
 db_handler = DatabaseHandler(db_file)
@@ -17,8 +24,8 @@ random_league = random.choice(list(leagues.game_rates.keys()))
 game = Game(
     # date = "2024-05-12",
     date=random_date.strftime("%y%m%d"),
-    site="Centennial",  # Required
-    # site=random_site,
+    # site="Centennial",  # Required
+    site=random_site,
     # league="mtaba",  # Required
     league=random_league,
     # assignor=None,  # Get assignor from leagues
@@ -38,6 +45,7 @@ def main_menu():
         "b": lambda: functions.bulk_update_games_paid_status(DatabaseHandler(db_file)),
         "g": lambda: functions.review_all_games(db_file),
         "s": lambda: functions.display_season_summary(db_file),
+        "m": lambda: functions.update_zero_mileage_entries(API_KEY, DEFAULT_FROM, db_handler),
         "d": lambda: functions.database_operations_submenu(),
         "x": lambda: functions.exit_application(),
     }
@@ -52,6 +60,7 @@ def main_menu():
         print("[V]iew Unpaid Games")
         print("[G]ame Ledger")
         print("[S]eason Summary")
+        print("[M]ileage Update for Fields")
         print("[D]atabase Ops")
         print("E[x]it\n")
         choice = input("Enter your choice: ").lower()
