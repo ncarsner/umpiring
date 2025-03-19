@@ -12,6 +12,7 @@ import leagues
 
 db_file = "officiating.db"
 db_handler = DatabaseHandler(db_file)
+CURRENT_YEAR = str(datetime.now().year)[-2:]
 
 
 def create_connection(db_file):
@@ -97,7 +98,6 @@ def display_season_summary(db_file):
     if conn is not None:
         try:
             cur = conn.cursor()
-            current_year = str(datetime.now().year)[-2:]
             sql = f"""
                 SELECT league,
                     COUNT(1) as total_games,
@@ -105,7 +105,7 @@ def display_season_summary(db_file):
                     SUM(CASE WHEN fee_paid = 1 then game_fee else 0 end) as total_paid,
                     ROUND(SUM(mileage),1) as total_mileage
                 FROM games
-                WHERE substr(date, 1, 2) = '{current_year}'
+                WHERE substr(date, 1, 2) = '{CURRENT_YEAR}'
                 GROUP BY league
             """
             cur.execute(sql)
@@ -143,13 +143,12 @@ def review_all_games(db_file):
     if conn is not None:
         try:
             cur = conn.cursor()
-            current_year = str(datetime.now().year)[-2:]
             sql = f""" 
-                SELECT id, date, site, assignor, game_fee,
-                    CASE WHEN fee_paid = 1 then 'Y' else '' end as fee_paid,
-                    CASE WHEN is_volunteer = 1 then 'Y' else '' end as is_vol
+                SELECT id, date, league,
+                    CASE WHEN fee_paid = 1 then 'Y' else '' end,
+                    CASE WHEN mileage = 0 then '' else mileage end
                 FROM games
-                WHERE substr(date, 1, 2) = '{current_year}'
+                WHERE substr(date, 1, 2) = '{CURRENT_YEAR}'
             """
             cur.execute(sql)
             all_games = cur.fetchall()
@@ -160,11 +159,9 @@ def review_all_games(db_file):
                 table.field_names = [
                     "ID",
                     "Date",
-                    "Site",
-                    "Assignor",
-                    "Fee",
+                    "League",
                     "Paid",
-                    "Vol",
+                    "Miles",
                 ]
 
                 for game in all_games:
@@ -188,17 +185,11 @@ def review_unpaid_games(db_file):
     if conn is not None:
         try:
             cur = conn.cursor()
-            current_year = str(datetime.now().year)[-2:]
-            # Adjusted SQL query to select specific fields
-            # sql = """ SELECT g.date, s.name, g.league_id, g.assignor_id, g.game_fee
-            #           FROM games g
-            #           JOIN sites s ON g.site_id = s.id
-            #           WHERE g.fee_paid = 0 """
             sql = f""" 
-                SELECT id, date, site, league, assignor, game_fee, fee_paid
+                SELECT id, date, site, game_fee
                 FROM games
                 WHERE fee_paid = 0
-                AND substr(date, 1, 2) = '{current_year}'
+                AND substr(date, 1, 2) = '{CURRENT_YEAR}'
             """
             cur.execute(sql)
             unpaid_games = cur.fetchall()
@@ -210,10 +201,7 @@ def review_unpaid_games(db_file):
                     "ID",
                     "Date",
                     "Site",
-                    "League",
-                    "Assignor",
-                    "Game Fee",
-                    "Paid",
+                    "Fee",
                 ]
 
                 for game in unpaid_games:
@@ -311,6 +299,36 @@ def bulk_update_games_paid_status(db_handler):
         print(f"Games {game_ids} marked as paid.")
     else:
         print("Operation canceled.")
+
+
+def get_all_sites_and_mileage(db_file):
+    """Retrieve all sites and their mileage from the database."""
+    conn = create_connection(db_file)
+    if conn is not None:
+        try:
+            cur = conn.cursor()
+            sql = "SELECT name, mileage FROM sites"
+            cur.execute(sql)
+            sites_mileage = cur.fetchall()
+
+            if sites_mileage:
+                table = PrettyTable()
+                table.title = "Sites and Mileage"
+                table.field_names = ["Site", "Mileage"]
+
+                for site, mileage in sites_mileage:
+                    table.add_row([site, mileage])
+
+                print(table)
+            else:
+                print("No sites found.")
+
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
+    else:
+        print("Error! cannot create the database connection.")
 
 
 def database_operations_submenu():

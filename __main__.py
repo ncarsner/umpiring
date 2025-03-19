@@ -20,13 +20,10 @@ random_date = date.today() + timedelta(days=random.randint(1, 120))
 random_site = random.choice(list(sites.ballfields.keys()))
 random_league = random.choice(list(leagues.game_rates.keys()))
 
-# game to be added
+# Instance of the Game class
 game = Game(
-    # date = "2024-05-12",
     date=random_date.strftime("%y%m%d"),
-    # site="Centennial",  # Required
     site=random_site,
-    # league="mtaba",  # Required
     league=random_league,
     # assignor=None,  # Get assignor from leagues
     # game_fee=None, # Get game fee from leagues
@@ -45,7 +42,6 @@ def main_menu():
         "b": lambda: functions.bulk_update_games_paid_status(DatabaseHandler(db_file)),
         "g": lambda: functions.review_all_games(db_file),
         "s": lambda: functions.display_season_summary(db_file),
-        "m": lambda: functions.update_zero_mileage_entries(API_KEY, DEFAULT_FROM, db_handler),
         "d": lambda: functions.database_operations_submenu(),
         "x": lambda: functions.exit_application(),
     }
@@ -56,11 +52,10 @@ def main_menu():
         print("[A]dd Game")
         print("[U]pdate Game")
         print("[R]emove Game")
-        print("[B]ulk Paid Games")
         print("[V]iew Unpaid Games")
+        print("[B]ulk Paid Games")
         print("[G]ame Ledger")
         print("[S]eason Summary")
-        print("[M]ileage Update for Fields")
         print("[D]atabase Ops")
         print("E[x]it\n")
         choice = input("Enter your choice: ").lower()

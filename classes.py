@@ -51,8 +51,14 @@ class Game:
     def __post_init__(self, db_handler):
         self.assignor = self.get_assignor_from_league(self.league)
         self.game_fee = self.get_game_fee_from_league(self.league)
-        # self.mileage = Game.calculate_distance_for_site(api_key, default_from, self.site, sites.ballfields)
-        self.mileage = self.get_site_mileage_from_db(db_handler, self.site)
+        # self.mileage = self.get_site_mileage_from_db(db_handler, self.site)
+
+        # Check if mileage is already in the database
+        mileage = self.get_site_mileage_from_db(db_handler, self.site)
+        if not mileage:
+            mileage = Game.calculate_distance_for_site(api_key, default_from, self.site, sites.ballfields)
+            db_handler.update_or_add_site(self.site, mileage)
+        self.mileage = mileage
 
     @staticmethod
     def get_site_mileage_from_db(db_handler, site_name):
@@ -238,7 +244,8 @@ class DatabaseHandler:
             try:
                 cur = conn.cursor()
                 # Prepare the SQL query to update the fee_paid status
-                sql = "UPDATE games SET fee_paid = ? WHERE id IN ({seq})".format(seq=",".join(["?"] * len(game_ids)))
+                # sql = "UPDATE games SET fee_paid = ? WHERE id IN ({seq})".format(seq=",".join(["?"] * len(game_ids)))
+                sql = f"UPDATE games SET fee_paid = ? WHERE id IN ({','.join(['?'] * len(game_ids))})"
                 # Execute the query with paid_status and the list of game_ids
                 cur.execute(sql, [int(paid_status)] + game_ids)
                 conn.commit()
